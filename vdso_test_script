@@ -1,0 +1,10 @@
+#!/bin/bash
+echo -ne "gcc -o test_vdso test_vdso.c\n\n"
+gcc -o test_vdso test_vdso.c;
+echo -ne "\nstrace -ce gettimeofday ./test_vdso;\n\n"
+strace -ce gettimeofday ./test_vdso;
+echo -ne "\nstrace -ce clock_gettime ./test_vdso;\n\n"
+strace -ce clock_gettime ./test_vdso;
+echo -ne "\nstrace -c ./test_vdso\n\n";
+strace -c ./test_vdso
+
