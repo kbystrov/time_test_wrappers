@@ -49,7 +49,7 @@ int main(int argc, char * const argv[]){
     
         for (uint64_t i = 0; i < iters; i++) {
             clock_nanosleep(CLOCK_MONOTONIC, 0, &tv, NULL);
-        }
+        } 
 
         clock_gettime(CLOCK_MONOTONIC, &tv_end);
 
