@@ -1,71 +1,74 @@
-/*
- * Copyright (c) 2003 Paul Herman
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
+#include <stdint.h>
 
-#define ONE_SECOND	1000000000L
+static uint64_t iters = 2e3;
+static uint64_t sleep_period = 1e3;
+static uint64_t nsecs_in_sec = 1e9;
 
-int count = 200;
-int debug = 0;
+#define TIME(name) ( name##_time = name##_sec +  (double) name##_nsec / nsecs_in_sec )
 
-int main (int ac, char **av) {
-	double diff;
-	struct timespec ts0, ts1, ts2;
+int main(int argc, char * const argv[]){
 
-	ts0.tv_sec = 0;
+        if(argc > 1 && argv[1]) {
+            sleep_period = atoll(argv[1]);
+        }	
 
-	if (ac > 1 && av[1])
-		count = strtol(av[1], NULL, 10);
+        if (argc > 2 && argv[2]) {
+                iters = atoll(argv[2]);
+        }	
 
-	while(count--) {
-		clock_gettime(CLOCK_MONOTONIC, &ts1);
-			/*
-			 * Calculate the number of microseconds to sleep so we
-			 * can wakeup right when the second hand hits zero.
-			 *
-			 * The latency for the following two statements is minimal.
-			 * On a > 1.0GHz machine, the subtraction is done in a few
-			 * nanoseconds, and the syscall to usleep/nanosleep is usualy
-			 * less than 800 ns or 0.8 us.
-			 */
-		ts0.tv_nsec = ONE_SECOND - ts1.tv_nsec;
-		nanosleep(&ts0, NULL);
-		clock_gettime(CLOCK_MONOTONIC, &ts2);
+        struct timespec tv, tv_st, tv_end;
+        tv.tv_nsec = sleep_period;
+        tv.tv_sec = 0;
 
-		diff = (double)(ts2.tv_nsec - (ts1.tv_nsec + ts0.tv_nsec))/1e9;
-		diff += (double)(ts2.tv_sec - ts1.tv_sec);
-		if (debug)
-			printf("(%ld.%.9ld) ", ts2.tv_sec, ts2.tv_nsec);
-		printf("%.9f\n", diff);
-	}
-	return 0;
+        uint64_t est_sec = sleep_period * iters / nsecs_in_sec;
+        uint64_t est_nsec = sleep_period * iters - est_sec * nsecs_in_sec;
+        double est_time = 0;
+
+        TIME(est);
+
+        uint64_t real_sec = 0;
+        uint64_t real_nsec = 0;
+        double real_time = 0;
+
+        uint64_t diff_sec = 0;
+        uint64_t diff_nsec = 0;
+        double diff_time = 0;
+
+        clock_gettime(CLOCK_MONOTONIC, &tv_st);
+    
+        for (uint64_t i = 0; i < iters; i++) {
+                nanosleep(&tv, NULL);
+                //clock_nanosleep(CLOCK_MONOTONIC, 0, &tv, NULL);
+        }
+
+        clock_gettime(CLOCK_MONOTONIC, &tv_end);
+
+        real_sec = tv_end.tv_sec - tv_st.tv_sec;
+
+        if(tv_end.tv_nsec < tv_st.tv_nsec){
+            real_sec -= 1;
+            real_nsec = tv_end.tv_nsec + (nsecs_in_sec - tv_st.tv_nsec);
+        } else {
+            real_nsec = tv_end.tv_nsec - tv_st.tv_nsec;
+        }
+
+        TIME(real);
+
+        diff_sec = real_sec - est_sec;
+        diff_nsec = real_nsec - est_nsec;
+
+        TIME(diff);
+
+        printf("Estimated time: %2.9f\n", est_time);
+        printf("Real time: %2.9f\n" , real_time );
+        printf("Diff time: %2.9f\n" , diff_time );
+
+        printf("Avg time latency %ld of nanosleep(%ld) = %.0f nsecs\n", iters, sleep_period, diff_time * nsecs_in_sec / iters  );
+
+        return 0;
 }
