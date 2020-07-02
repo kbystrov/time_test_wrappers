@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-static const uint64_t iters = 1e3;
+static const uint64_t iters = 2e3;
 static const uint64_t sleep_period = 1e8;
 static const uint64_t nsecs_in_sec = 1e9;
 
