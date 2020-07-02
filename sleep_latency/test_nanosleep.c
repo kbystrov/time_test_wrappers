@@ -14,11 +14,17 @@ static uint64_t nsecs_in_sec = 1e9;
 int main(int argc, char * const argv[]){
 
         if(argc > 1 && argv[1]) {
-            sleep_period = atoll(argv[1]);
+            int64_t res = atoll(argv[1]);
+            if(res > 0){
+                sleep_period = res;
+            }
         }	
 
         if (argc > 2 && argv[2]) {
-                iters = atoll(argv[2]);
+            int64_t res =  atoll(argv[2]);
+            if(res > 0){
+                iters = res;
+            }   
         }	
 
         struct timespec tv, tv_st, tv_end;
