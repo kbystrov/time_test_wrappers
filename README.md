@@ -7,3 +7,5 @@ gettime_test/ - another group of tests for measuring time distorton.
 ptpd/ - ptpd2 examples of config file and log.
 
 vdso/ - test for vDSO availabiliy for using gettimeofday() and clock_gettime(). 
+
+utilities/ - functions for work with time
