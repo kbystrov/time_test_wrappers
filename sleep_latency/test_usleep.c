@@ -1,70 +1,80 @@
-/*
- * Copyright (c) 2003 Paul Herman
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
+#include <stdint.h>
 
-#define ONE_SECOND	1000000L
+static uint64_t iters = 1e2;
+static uint64_t sleep_period = 1e2;
 
-int count = 200;
-int debug = 0;
+static const uint64_t nsecs_in_sec = 1e9;
+static const uint64_t usecs_in_sec = 1e6;
+static const uint64_t nsecs_in_usec = 1e3;
 
-int main (int ac, char **av) {
-	long s;
-	double diff;
-	struct timespec tv1, tv2;
+#define TIME(name) ( name##_time = name##_sec +  (double) name##_usec / usecs_in_sec )
 
-	if (ac > 1 && av[1])
-		count = strtol(av[1], NULL, 10);
+int main(int argc, char * const argv[]){
 
-	while(count--) {
-		clock_gettime(CLOCK_MONOTONIC, &tv1);
-			/*
-			 * Calculate the number of microseconds to sleep so we
-			 * can wakeup right when the second hand hits zero.
-			 *
-			 * The latency for the following two statements is minimal.
-			 * On a > 1.0GHz machine, the subtraction is done in a few
-			 * nanoseconds, and the syscall to usleep/nanosleep is usualy
-			 * less than 800 ns or 0.8 us.
-			 */
-		s = ONE_SECOND - tv1.tv_nsec / 1000;
-		usleep(s);
-		clock_gettime(CLOCK_MONOTONIC, &tv2);
+        if(argc > 1 && argv[1]) {
+            int64_t res = atoll(argv[1]);
+            if(res > 0){
+                sleep_period = res;
+            }
+        }	
 
-		diff = (double)(tv2.tv_nsec - (tv1.tv_nsec + s * 1000))/1e9;
-		diff += (double)(tv2.tv_sec - tv1.tv_sec);
-		if (debug)
-			printf("(%ld.%.9ld) ", tv2.tv_sec, tv2.tv_nsec);
-		printf("%.9f\n", diff);
-	}
-	return 0;
+        if (argc > 2 && argv[2]) {
+            int64_t res =  atoll(argv[2]);
+            if(res > 0){
+                iters = res;
+            }   
+        }	
+
+        struct timespec tv_st, tv_end;
+
+        uint64_t est_sec = sleep_period * iters / usecs_in_sec;
+        uint64_t est_usec = sleep_period * iters - est_sec * usecs_in_sec;
+        double est_time = 0;
+
+        TIME(est);
+
+        uint64_t real_sec = 0;
+        uint64_t real_usec = 0;
+        double real_time = 0;
+
+        uint64_t diff_sec = 0;
+        uint64_t diff_usec = 0;
+        double diff_time = 0;
+
+        clock_gettime(CLOCK_MONOTONIC, &tv_st);
+    
+        for (uint64_t i = 0; i < iters; i++) {
+                usleep(sleep_period);
+        }
+
+        clock_gettime(CLOCK_MONOTONIC, &tv_end);
+
+        real_sec = tv_end.tv_sec - tv_st.tv_sec;
+
+        if(tv_end.tv_nsec < tv_st.tv_nsec){
+            real_sec -= 1;
+            real_usec = ( tv_end.tv_nsec + (nsecs_in_sec - tv_st.tv_nsec) ) / nsecs_in_usec;
+        } else {
+            real_usec = ( tv_end.tv_nsec - tv_st.tv_nsec ) / nsecs_in_usec;
+        }
+
+        TIME(real);
+
+        diff_sec = real_sec - est_sec;
+        diff_usec = real_usec - est_usec;
+
+        TIME(diff);
+
+        printf("Estimated time: %2.6f\n", est_time);
+        printf("Real time: %2.6f\n" , real_time );
+        printf("Diff time: %2.6f\n" , diff_time );
+
+        printf("Avg time latency %ld of usleep(%ld) = %.0f usecs\n", iters, sleep_period, diff_time * usecs_in_sec / iters  );
+
+        return 0;
 }

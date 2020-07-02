@@ -7,7 +7,7 @@
 
 static uint64_t iters = 2e3;
 static uint64_t sleep_period = 1e3;
-static uint64_t nsecs_in_sec = 1e9;
+static const uint64_t nsecs_in_sec = 1e9;
 
 #define TIME(name) ( name##_time = name##_sec +  (double) name##_nsec / nsecs_in_sec )
 
