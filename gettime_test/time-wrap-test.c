@@ -39,8 +39,8 @@
 const size_t MSG_LEN = 1024;
 
 #define TEST_TSC 0
-#define TEST_TOD 1
-#define TEST_CLOCK 0
+#define TEST_TOD 0
+#define TEST_CLOCK 1
 
 #define TEST_GETRES 1
 
