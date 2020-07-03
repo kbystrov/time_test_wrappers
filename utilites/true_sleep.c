@@ -9,7 +9,7 @@
 
 static unsigned int sleep_period = 10;
 
-static const int64_t nsecs_in_sec = 1e9;
+static const uint64_t nsecs_in_sec = 1e9;
 static const uint64_t usecs_in_sec = 1e6;
 static const uint64_t nsecs_in_usec = 1e3;
 
